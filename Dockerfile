@@ -45,7 +45,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 #    curl \
 #    libpq5 \
 #    && rm -rf /var/lib/apt/lists/*
-RUN mv /etc/apt/apt.conf.d/99cleanup /etc/apt/apt.conf.d/99cleanup.bak || true
+# 删除所有 apt 后处理脚本
+RUN find /etc/apt/apt.conf.d/ -type f -exec grep -l 'APT::Update::Post-Invoke' {} \; | xargs rm -f || true
 RUN apt-get update
 RUN apt-get install -y gcc g++ libpq-dev
 
