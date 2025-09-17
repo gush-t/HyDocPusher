@@ -40,10 +40,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PATH="/opt/venv/bin:$PATH"
 
 # Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    libpq5 \
-    && rm -rf /var/lib/apt/lists/*
+
+#RUN apt-get update && apt-get install -y \
+#    curl \
+#    libpq5 \
+#    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update
+RUN apt-get install -y gcc g++ libpq-dev
 
 # Create app user
 RUN groupadd -r appuser && useradd -r -g appuser appuser
