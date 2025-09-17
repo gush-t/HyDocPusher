@@ -24,12 +24,10 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy requirements
 COPY requirements.txt .
-COPY requirements-dev.txt .
 
 # Install Python dependencies
 RUN pip install --upgrade pip \
-    && pip install -r requirements.txt \
-    && pip install -r requirements-dev.txt
+    && pip install -r requirements.txt
 
 # Production stage
 FROM harbor.trscd.com.cn/baseapp/python:3.9-slim
