@@ -19,7 +19,8 @@ class PulsarConfig(BaseSettings):
     )
     
     #cluster_url: str = Field(default="pulsar://192.168.210.60:26650")
-    cluster_url: str = Field(default="pulsar://10.20.162.70:80")
+    #cluster_url: str = Field(default="pulsar://10.20.162.70:80")
+    cluster_url: str = Field(default="pulsar://tlqcn-broker:6650")
     topic: str = Field(default="document.all")
     #topic: str = Field(default="user-to-pretreat")
     subscription: str = Field(default="hydocpusher-subscription")
