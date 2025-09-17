@@ -147,9 +147,13 @@ class FieldMapper:
             if 'CHANNELID' in source_data:
                 classification_mapping = self.map_classification(source_data['CHANNELID'])
                 mapped_data.update(classification_mapping)
-            
+                # 集团新闻 30 年  其他永久 集团新闻栏目ID 672 2240
+                if str(source_data['CHANNELID']) == '672' or str(source_data['CHANNELID']) == '2241':
+                    mapped_data['retentionperiod'] = 30
+                else:
+                    mapped_data['retentionperiod'] = '永久'
             # 设置保留期限（根据PRD文档：固定值30）
-            mapped_data['retentionperiod'] = 30
+            # mapped_data['retentionperiod'] = 30
             
             # 生成年份字段
             if 'docdate' in mapped_data and mapped_data['docdate']:
@@ -331,6 +335,8 @@ class FieldMapper:
         # 验证数据类型
         if 'retentionperiod' in mapped_data:
             try:
+                if mapped_data['retentionperiod'] == '永久':
+                    return
                 retention_period = int(mapped_data['retentionperiod'])
                 if retention_period <= 0:
                     raise ValidationException("Retention period must be positive")

@@ -236,7 +236,12 @@ class DataTransformer:
             
             # 映射部门信息
             if 'CRDEPT' in source_data:
-                additional_fields['fillingdepartment'] = source_data['CRDEPT']
+                # "CRDEPT": "云南省能源投资集团有限公司~云南能投信息产业开发有限公司~你好",
+                #  截取第二个波兰线 之后的数据
+                if source_data['CRDEPT'].count('~') >= 2:
+                    additional_fields['fillingdepartment'] = source_data['CRDEPT'].split('~')[2]
+                else:
+                    additional_fields['fillingdepartment'] = source_data['CRDEPT']
             
             # 映射作者信息
             if 'TXY' in source_data and source_data['TXY']:

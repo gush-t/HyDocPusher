@@ -100,7 +100,7 @@ class ArchiveData(BaseModel):
     author: str = Field(default="", description="作者")
     docdate: str = Field(..., description="文档日期")
     year: str = Field(..., description="年份")
-    retentionperiod: int = Field(..., description="保留期限")
+    retentionperiod: str = Field(..., description="保留期限")
     fillingdepartment: str = Field(default="", description="归档部门")
     bly: str = Field(default="", description="编录员")
     attachment: List[AttachmentData] = Field(default_factory=list, description="附件列表")
@@ -150,9 +150,11 @@ class ArchiveData(BaseModel):
     @classmethod
     def validate_retention_period(cls, v):
         """验证保留期限"""
-        if v <= 0:
+        if v == '永久':
+            return v
+        if int(v) <= 0:
             raise ValueError("Retention period must be positive")
-        if v > 100:  # 限制最大100年
+        if int(v) > 100:  # 限制最大100年
             raise ValueError("Retention period cannot exceed 100 years")
         return v
     

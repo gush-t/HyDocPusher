@@ -245,7 +245,7 @@ class EndToEndTest:
                         "OPERTIME": "2025-08-29 18:54:06",
                         "DOCPUBTIME": "2025-08-29 18:54:06",
                         "DOCSTATUS": "10",
-                        "CRDEPT": "云南省能源投资集团有限公司~云南能投信息产业开发有限公司~",
+                        "CRDEPT": "云南省能源投资集团有限公司~云南能投信息产业开发有限公司~组织人力部",
                         "DOCRELTIME": "2025-04-09 15:46:25",
                         "DOCLEVEL": "0",
                         "REFUSESTATUS": "0",
