@@ -67,7 +67,7 @@ class PulsarConsumer:
                 consumer_type=pulsar.ConsumerType.Shared,
                 initial_position=pulsar.InitialPosition.Earliest,
                 negative_ack_redelivery_delay_ms=60000,  # 60秒后重新投递
-                ack_timeout_ms=300000,  # 5分钟确认超时
+                unacked_messages_timeout_ms=300000,  # 5分钟确认超时
                 max_total_receiver_queue_size_across_partitions=50000
             )
             

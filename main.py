@@ -8,10 +8,12 @@ import asyncio
 import logging
 import signal
 import sys
-from typing import Optional
+from typing import Optional, Dict, Any
 from contextlib import asynccontextmanager
 
 from hydocpusher.config.settings import get_config
+import os
+os.makedirs('logs', exist_ok=True)
 from hydocpusher.consumer.pulsar_consumer import PulsarConsumer
 from hydocpusher.consumer.message_handler import MessageHandler
 from hydocpusher.transformer.data_transformer import DataTransformer
@@ -76,15 +78,15 @@ class HyDocPusherApp:
             
             # 初始化消息处理器
             self.message_handler = MessageHandler(
-                data_transformer=self.data_transformer,
-                archive_client=self.archive_client
+                config=self.config,
+                data_transformer=self.data_transformer
             )
             logger.info("Message handler initialized")
             
             # 初始化Pulsar消费者
             self.pulsar_consumer = PulsarConsumer(
                 config=self.config,
-                message_handler=self.message_handler.handle_message
+                message_handler=self._create_message_processor()
             )
             logger.info("Pulsar consumer initialized")
             
@@ -156,6 +158,40 @@ class HyDocPusherApp:
         
         logger.info("Application shutdown completed")
     
+    def _create_message_processor(self):
+        """创建完整的消息处理回调函数"""
+        async def process_complete_message(message_data: Dict[str, Any]) -> None:
+            """
+            完整的消息处理流程：验证 → 转换 → 推送档案
+            
+            Args:
+                message_data: 从Pulsar接收的原始消息数据
+            """
+            message_id = None
+            try:
+                # 1. 使用MessageHandler处理和转换消息
+                result = await self.message_handler.handle_message(message_data)
+                
+                if result.get("success"):
+                    message_id = result.get("message_id")
+                    archive_data = result.get("archive_data")
+                    
+                    logger.info(f"Message {message_id} processed successfully, sending to archive system...")
+                    
+                    # 2. 使用ArchiveClient发送到档案系统
+                    archive_response = await self.archive_client.send_archive_data(archive_data)
+                    
+                    logger.info(f"Message {message_id} archived successfully: {archive_response}")
+                else:
+                    logger.error(f"Message processing failed: {result}")
+                    
+            except Exception as e:
+                logger.error(f"Complete message processing failed for message {message_id}: {str(e)}")
+                # 这里可以添加死信队列处理逻辑
+                raise
+        
+        return process_complete_message
+    
     def setup_signal_handlers(self) -> None:
         """设置信号处理器"""
         def signal_handler(signum, frame):
@@ -216,8 +252,8 @@ async def main() -> None:
 
 if __name__ == "__main__":
     # 创建logs目录
-    import os
-    os.makedirs('logs', exist_ok=True)
+    # import os
+    # os.makedirs('logs', exist_ok=True)
     
     # 运行应用
     try:
