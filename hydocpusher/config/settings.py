@@ -89,8 +89,10 @@ class ArchiveConfig(BaseSettings):
         case_sensitive=False,
         env_prefix="ARCHIVE_"
     )
-    api_url: str = Field(default="http://10.20.162.224/news/archive/receive")
-    base_url: str = Field(default="http://10.20.162.224/news/archive/receive")  # 添加base_url字段作为api_url的别名
+    #api_url: str = Field(default="http://10.20.162.224/news/archive/receive")
+    api_url: str = Field(default="http://10.20.162.1:8080/news/archive/receive")
+    #base_url: str = Field(default="http://10.20.162.224/news/archive/receive")  # 添加base_url字段作为api_url的别名
+    base_url: str = Field(default="http://10.20.162.1:8080/news/archive/receive")  # 添加base_url字段作为api_url的别名
     timeout: int = Field(default=30000)
     retry_max_attempts: int = Field(default=3)
     retry_delay: int = Field(default=60000)
