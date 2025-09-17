@@ -9,14 +9,15 @@ FROM harbor.trscd.com.cn/baseapp/python:3.9.23-slim-bullseye as builder
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    DEBIAN_FRONTEND=noninteractive
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list \
+    && sed -i -e 's/^APT/# APT/' -e 's/^DPkg/# DPkg/' /etc/apt/apt.conf.d/docker-clean \
+    && apt-get update && apt-get install -y gcc g++ libpq-dev \
+    && apt-get clean \
+    && rm -rf /var/cache/apt/*  /var/lib/apt/lists/*
 
 # Create virtual environment
 RUN python -m venv /opt/venv
@@ -35,18 +36,16 @@ FROM harbor.trscd.com.cn/baseapp/python:3.9.23-slim-bullseye
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PATH="/opt/venv/bin:$PATH"
+    PATH="/opt/venv/bin:$PATH" \
+    DEBIAN_FRONTEND=noninteractive
 
 # Install runtime dependencies
 
-RUN apt-get update && apt-get install -y \
-    curl \
-    libpq5 \
-    && rm -rf /var/lib/apt/lists/*
-# 删除所有 apt 后处理脚本
-#RUN find /etc/apt/apt.conf.d/ -type f -exec grep -l 'APT::Update::Post-Invoke' {} \; | xargs rm -f || true
-#RUN apt-get update
-#RUN apt-get install -y gcc g++ libpq-dev
+RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list \
+    && sed -i -e 's/^APT/# APT/' -e 's/^DPkg/# DPkg/' /etc/apt/apt.conf.d/docker-clean \
+    && apt-get update && apt-get install -y curl libpq5 vim wget net-tools tzdata bash \
+    && apt-get clean \
+    && rm -rf /var/cache/apt/*  /var/lib/apt/lists/*
 
 # Create app user
 RUN groupadd -r appuser && useradd -r -g appuser appuser
