@@ -62,8 +62,8 @@ WORKDIR /app
 COPY --chown=appuser:appuser . .
 
 # Copy entrypoint script
-COPY --chown=appuser:appuser docker/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+#COPY --chown=appuser:appuser docker/entrypoint.sh /entrypoint.sh
+# RUN chmod +x /entrypoint.sh
 
 # Create logs directory
 RUN mkdir -p /app/logs && chown appuser:appuser /app/logs
@@ -79,7 +79,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
 # Set entrypoint
-ENTRYPOINT ["/entrypoint.sh"]
+# ENTRYPOINT ["/entrypoint.sh"]
 
 # Default command
 CMD ["uvicorn", "hydocpusher.main:app", "--host", "0.0.0.0", "--port", "8080"]
