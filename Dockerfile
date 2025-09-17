@@ -3,7 +3,7 @@
 # Python Version: 3.9.6
 
 # Build stage
-FROM harbor.trscd.com.cn/baseapp/python:3.9-slim as builder
+FROM harbor.trscd.com.cn/baseapp/python:3.9.23-slim-bullseye as builder
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -30,7 +30,7 @@ RUN pip install --upgrade pip \
     && pip install -r requirements.txt
 
 # Production stage
-FROM harbor.trscd.com.cn/baseapp/python:3.9-slim
+FROM harbor.trscd.com.cn/baseapp/python:3.9.23-slim-bullseye
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
