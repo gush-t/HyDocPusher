@@ -45,6 +45,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 #    curl \
 #    libpq5 \
 #    && rm -rf /var/lib/apt/lists/*
+RUN mv /etc/apt/apt.conf.d/99cleanup /etc/apt/apt.conf.d/99cleanup.bak || true
 RUN apt-get update
 RUN apt-get install -y gcc g++ libpq-dev
 
