@@ -41,14 +41,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # Install runtime dependencies
 
-#RUN apt-get update && apt-get install -y \
-#    curl \
-#    libpq5 \
-#    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y \
+    curl \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
 # 删除所有 apt 后处理脚本
-RUN find /etc/apt/apt.conf.d/ -type f -exec grep -l 'APT::Update::Post-Invoke' {} \; | xargs rm -f || true
-RUN apt-get update
-RUN apt-get install -y gcc g++ libpq-dev
+#RUN find /etc/apt/apt.conf.d/ -type f -exec grep -l 'APT::Update::Post-Invoke' {} \; | xargs rm -f || true
+#RUN apt-get update
+#RUN apt-get install -y gcc g++ libpq-dev
 
 # Create app user
 RUN groupadd -r appuser && useradd -r -g appuser appuser
