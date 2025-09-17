@@ -18,8 +18,10 @@ class PulsarConfig(BaseSettings):
         env_prefix="PULSAR_"
     )
     
-    cluster_url: str = Field(default="pulsar://192.168.210.60:26650")
-    topic: str = Field(default="user-to-pretreat")
+    #cluster_url: str = Field(default="pulsar://192.168.210.60:26650")
+    cluster_url: str = Field(default="pulsar://10.20.162.70:80")
+    topic: str = Field(default="document.all")
+    #topic: str = Field(default="user-to-pretreat")
     subscription: str = Field(default="hydocpusher-subscription")
     dead_letter_topic: str = Field(default="user-to-pretreat-dlq")
     
@@ -28,8 +30,10 @@ class PulsarConfig(BaseSettings):
     password: Optional[str] = Field(default=None)
     
     # 租户和命名空间
-    tenant: str = Field(default="bigdata")
-    namespace: str = Field(default="text")
+    #tenant: str = Field(default="bigdata")
+    tenant: str = Field(default="public")
+    #namespace: str = Field(default="text")
+    namespace: str = Field(default="default")
     
     # 超时配置
     connection_timeout: int = Field(default=30000)
@@ -84,8 +88,8 @@ class ArchiveConfig(BaseSettings):
         case_sensitive=False,
         env_prefix="ARCHIVE_"
     )
-    api_url: str = Field(default="http://10.20.162.1:8080/news/archive/receive")
-    base_url: str = Field(default="http://10.20.162.1:8080/news/archive/receive")  # 添加base_url字段作为api_url的别名
+    api_url: str = Field(default="http://10.20.162.224/news/archive/receive")
+    base_url: str = Field(default="http://10.20.162.224/news/archive/receive")  # 添加base_url字段作为api_url的别名
     timeout: int = Field(default=30000)
     retry_max_attempts: int = Field(default=3)
     retry_delay: int = Field(default=60000)

@@ -13,7 +13,7 @@ import time
 import traceback
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 # 添加项目根目录到Python路径
 project_root = Path(__file__).parent.parent.parent
@@ -23,6 +23,7 @@ import pulsar
 from hydocpusher.config.settings import get_config
 from hydocpusher.transformer.data_transformer import DataTransformer
 from hydocpusher.config.classification_config import ClassificationConfig
+from hydocpusher.client.archive_client import ArchiveClient
 
 # 配置日志
 logging.basicConfig(
@@ -50,12 +51,19 @@ class EndToEndTest:
         except Exception as e:
             logger.warning(f"数据转换器初始化失败: {str(e)}")
             self.transformer = None
+            
+        # 初始化档案客户端
+        self.archive_client: Optional[ArchiveClient] = None
     
     async def setup(self):
         """设置测试环境"""
         try:
             logger.info("设置测试环境...")
             
+            # 初始化档案客户端
+            self.archive_client = ArchiveClient()
+            logger.info("档案客户端初始化成功")
+
             # 构建客户端配置
             client_config = {
                 'service_url': self.config.pulsar.cluster_url,
@@ -144,7 +152,7 @@ class EndToEndTest:
                         "CHANNELTYPE": "",
                         "SEARCHWORDVALUE": "",
                         "DOCORDER": "34",
-                        "RECID": "84085",
+                        "RECID": "84086",
                         "ACTIONTYPE": "3",
                         "DOCUMENT_CONTENT_APPENDIX": "[]",
                         "FOCUSIMG": "",
@@ -221,7 +229,7 @@ class EndToEndTest:
                         "CANEDIT": "true",
                         "DOCORDER": "34",
                         "PUBQUOTEDOC": "0",
-                        "RECID": "84085",
+                        "RECID": "84086",
                         "ACTIONTYPE": "3",
                         "DOCCHANNEL": "2240",
                         "PUSHUIRBSTATUS": "1",
@@ -272,7 +280,7 @@ class EndToEndTest:
                         "APPFILE": "W020250829679959407981.jpg",
                         "APPFLAG": "20"
                     }],
-                    "ID": "84085",
+                    "ID": "84086",
                     "CHANNELDESCNAV": "数字能投推送测试",
                     "TYPE": "1"
                 },
@@ -382,6 +390,27 @@ class EndToEndTest:
                                         else:
                                             logger.info(f"转换后数据类型: {type(processed_data).__name__}")
                                         logger.info(f"转换耗时: {transform_end - transform_start:.3f}秒")
+
+                                        # === 添加数据推送逻辑 ===
+                                        if self.archive_client:
+                                            try:
+                                                push_start = time.time()
+                                                # 调用ArchiveClient发送数据
+                                                logger.info(f"Test Sending archive data to {self.archive_client.api_url}")
+                                                logger.info(f"Test Request data: {processed_data}")
+                                                archive_response = await self.archive_client.send_archive_data_async(processed_data)
+                                                push_end = time.time()
+                                                logger.info(f"✅ 数据推送成功到档案系统")
+                                                logger.info(f"档案系统响应: {json.dumps(archive_response, ensure_ascii=False)}")
+                                                logger.info(f"推送耗时: {push_end - push_start:.3f}秒")
+                                            except Exception as e:
+                                                logger.error(f"❌ 数据推送失败到档案系统: {str(e)}")
+                                                logger.error(f"异常类型: {type(e).__name__}")
+                                                logger.error(f"异常堆栈: {traceback.format_exc()}")
+                                        else:
+                                            logger.warning("ArchiveClient 未初始化，跳过数据推送。请检查 EndToEndTest.setup 方法。")
+                                        # === 数据推送逻辑结束 ===
+
                                     except Exception as e:
                                         logger.error(f"❌ 数据转换失败: {str(e)}")
                                         logger.error(f"异常类型: {type(e).__name__}")

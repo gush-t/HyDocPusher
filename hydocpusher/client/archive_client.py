@@ -287,8 +287,10 @@ class ArchiveClient:
                 request_data = self._build_request_data(archive_data)
             
             logger.info(f"Sending archive data to {self.api_url}")
+            logger.info(f"Request data: {request_data}")
             logger.debug(f"Request data: {json.dumps(request_data, ensure_ascii=False, indent=2)}")
-            
+            logger.info(f"Request data: {json.dumps(request_data, ensure_ascii=False, indent=2)}")
+            logger.info(f"Request data: {request_data}")
             # 确保客户端已创建
             client = self._ensure_async_client()
             
@@ -346,6 +348,7 @@ class ArchiveClient:
                 request_data = self._build_request_data(archive_data)
             
             logger.info(f"Sending archive data to {self.api_url}")
+            logger.info(f"Request data: {request_data}")
             logger.debug(f"Request data: {json.dumps(request_data, ensure_ascii=False, indent=2)}")
             
             # 确保客户端已创建

@@ -175,6 +175,8 @@ class AttachmentBuilder:
             # 提取<iframe>标签的src属性
             for iframe_tag in soup.find_all('iframe', src=True):
                 url = iframe_tag['src']
+                if url.contains('pages.do'):
+                    continue
                 attachment = self._create_attachment_from_url(url, 'iframe')
                 if attachment:
                     attachments.append(attachment)
@@ -304,6 +306,9 @@ class AttachmentBuilder:
         pattern = r'W\d+\.(jpg|jpeg|png|gif|bmp|webp)$'
         if re.search(pattern, address, re.IGNORECASE):
             # 现阶段直接返回原地址
+            # W020250829679959407981.jpg 截取成下面的格式
+            # 202508/W020250829679959407981.jpg
+            address = f"csts/test_2240/{address[2:8]}/{address}"
             return address
         return address
     
@@ -897,6 +902,9 @@ class AttachmentBuilder:
         for i, appendix in enumerate(appendix_list):
             try:
                 url = appendix.APPFILE
+                appflag = appendix.APPFLAG
+                if str(appflag) == '140':
+                    continue
                 # 使用域名构建绝对地址，而不是使用webhttp
                 absolute_url = self._build_absolute_url(url)
                 
