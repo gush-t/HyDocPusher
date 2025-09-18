@@ -49,7 +49,8 @@ class PulsarConsumer:
             ConnectionException: 连接失败时抛出异常
         """
         try:
-            logger.info(f"Connecting to Pulsar cluster: {self.config.pulsar.cluster_url}")
+            logger.info(f"[PULSAR-CONNECT] Attempting to connect to Pulsar cluster: {self.config.pulsar.cluster_url}")
+            logger.debug(f"[PULSAR-CONNECT] Connection parameters - Topic: {self.config.pulsar.topic}, Subscription: {self.config.pulsar.subscription}")
             
             # 创建Pulsar客户端
             self._client = pulsar.Client(
@@ -59,6 +60,7 @@ class PulsarConsumer:
                 authentication=None,
                 logger=logger
             )
+            logger.debug(f"[PULSAR-CONNECT] Pulsar client created successfully")
             
             # 创建消费者
             self._consumer = self._client.subscribe(
@@ -70,22 +72,25 @@ class PulsarConsumer:
                 unacked_messages_timeout_ms=300000,  # 5分钟确认超时
                 max_total_receiver_queue_size_across_partitions=50000
             )
+            logger.debug(f"[PULSAR-CONNECT] Consumer created and subscribed to topic")
             
             self._connection_retry_count = 0
-            logger.info(f"Successfully connected to Pulsar and subscribed to topic: {self.config.pulsar.topic}")
+            logger.info(f"[PULSAR-CONNECT] ✅ Successfully connected to Pulsar and subscribed to topic: {self.config.pulsar.topic}")
             
         except Exception as e:
             self._connection_retry_count += 1
-            logger.error(f"Failed to connect to Pulsar (attempt {self._connection_retry_count}): {str(e)}")
+            logger.error(f"[PULSAR-CONNECT] ❌ Failed to connect to Pulsar (attempt {self._connection_retry_count}/{self._max_connection_retries}): {str(e)}")
+            logger.error(f"[PULSAR-CONNECT] Error details - Type: {type(e).__name__}, URL: {self.config.pulsar.cluster_url}")
             
             if self._connection_retry_count >= self._max_connection_retries:
+                logger.error(f"[PULSAR-CONNECT] ❌ Maximum retry attempts reached. Connection failed permanently.")
                 raise ConnectionException(
                     f"Failed to connect to Pulsar after {self._max_connection_retries} attempts",
                     cause=e
                 )
             
             # 等待后重试
-            logger.info(f"Retrying connection in {self._connection_retry_delay} seconds...")
+            logger.warning(f"[PULSAR-CONNECT] 🔄 Retrying connection in {self._connection_retry_delay} seconds...")
             await asyncio.sleep(self._connection_retry_delay)
             await self.connect()  # 递归重试
     
@@ -100,8 +105,9 @@ class PulsarConsumer:
             raise ConnectionException("Not connected to Pulsar. Call connect() first.")
         
         self._running = True
-        logger.info("Starting message consumption...")
+        logger.info("[PULSAR-CONSUME] 🚀 Starting message consumption...")
         
+        message_count = 0
         try:
             while self._running:
                 try:
@@ -109,6 +115,8 @@ class PulsarConsumer:
                     message = self._consumer.receive(timeout_millis=1000)
                     
                     if message:
+                        message_count += 1
+                        logger.debug(f"[PULSAR-CONSUME] Received message #{message_count}: {message.message_id()}")
                         await self._process_message(message)
                         
                 except pulsar.Timeout:
@@ -117,14 +125,14 @@ class PulsarConsumer:
                     continue
                     
                 except Exception as e:
-                    logger.error(f"Error receiving message: {str(e)}")
+                    logger.error(f"[PULSAR-CONSUME] ❌ Error receiving message: {type(e).__name__}: {str(e)}")
                     await asyncio.sleep(1)  # 出错后等待1秒
                     
         except asyncio.CancelledError:
-            logger.info("Message consumption cancelled")
+            logger.info(f"[PULSAR-CONSUME] 🛑 Message consumption cancelled (processed {message_count} messages)")
             raise
         except Exception as e:
-            logger.error(f"Fatal error in message consumption: {str(e)}")
+            logger.error(f"[PULSAR-CONSUME] ❌ Fatal error in message consumption: {type(e).__name__}: {str(e)}")
             raise
     
     async def _process_message(self, message: PulsarMessage) -> None:
@@ -137,29 +145,39 @@ class PulsarConsumer:
         message_id = message.message_id()
         
         try:
-            logger.debug(f"Processing message: {message_id}")
+            logger.debug(f"[MSG-PROCESS] Processing message: {message_id}")
             
             # 解析消息内容
             message_data = self._parse_message(message)
             if not message_data:
+                logger.warning(f"[MSG-PROCESS] ⚠️  Empty message data for message: {message_id}")
+                self._consumer.acknowledge(message)
                 return
             
             # 调用消息处理器
             if self.message_handler:
-                await self.message_handler(message_data)
+                logger.debug(f"[MSG-PROCESS] Calling message handler for: {message_id}")
+                result = await self.message_handler(message_data)
+                
+                # 检查是否是过滤的消息
+                if isinstance(result, dict) and result.get("filtered"):
+                    logger.info(f"[MSG-PROCESS] 🔍 Message filtered: {message_id}, reason: {result.get('reason')}")
+                else:
+                    logger.debug(f"[MSG-PROCESS] Message handler completed for: {message_id}")
             
             # 确认消息
             self._consumer.acknowledge(message)
-            logger.debug(f"Message processed successfully: {message_id}")
+            logger.debug(f"[MSG-PROCESS] ✅ Message processed and acknowledged: {message_id}")
             
         except MessageProcessException as e:
             # 消息处理异常，发送到死信队列或否定确认
-            logger.error(f"Message processing failed: {message_id}, error: {str(e)}")
+            logger.error(f"[MSG-PROCESS] ❌ Message processing failed: {message_id}, error: {type(e).__name__}: {str(e)}")
             self._handle_processing_error(message, e)
             
         except Exception as e:
             # 其他异常
-            logger.error(f"Unexpected error processing message: {message_id}, error: {str(e)}")
+            logger.error(f"[MSG-PROCESS] ❌ Unexpected error processing message: {message_id}, error: {type(e).__name__}: {str(e)}")
+            logger.exception(f"[MSG-PROCESS] Full exception traceback for message {message_id}:")
             self._handle_processing_error(message, e)
     
     def _parse_message(self, message: PulsarMessage) -> Optional[Dict[str, Any]]:
@@ -176,26 +194,37 @@ class PulsarConsumer:
             # 获取消息数据
             data = message.data()
             if not data:
-                logger.warning(f"Empty message data: {message.message_id()}")
+                logger.warning(f"[MSG-PARSE] ⚠️  Empty message data: {message.message_id()}")
                 return None
             
             # 解析JSON
             json_str = data.decode('utf-8')
+            logger.info(f"[MSG-PARSE] 📨 Received message {message.message_id()}")
+            logger.info(f"[MSG-PARSE] 📝 Message content: {json_str}")
+            
             message_data = json.loads(json_str)
             
-            logger.debug(f"Successfully parsed message: {message.message_id()}")
+            # 记录关键信息
+            doc_id = message_data.get('DATA', {}).get('DOCID', 'unknown')
+            channel_id = message_data.get('DATA', {}).get('CHANNELID', 'unknown')
+            doc_title = message_data.get('DATA', {}).get('DATA', {}).get('DOCTITLE', 'unknown')
+            
+            logger.info(f"[MSG-PARSE] 📄 Document info - ID: {doc_id}, Channel: {channel_id}, Title: {doc_title}")
+            logger.debug(f"[MSG-PARSE] ✅ Successfully parsed message: {message.message_id()}")
             return message_data
             
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse message JSON: {message.message_id()}, error: {str(e)}")
+            logger.error(f"[MSG-PARSE] ❌ Failed to parse message JSON: {message.message_id()}, error: {str(e)}")
+            logger.error(f"[MSG-PARSE] 📄 Raw message content: {json_str[:500]}...")  # 只显示前500字符
             return None
             
         except UnicodeDecodeError as e:
-            logger.error(f"Failed to decode message data: {message.message_id()}, error: {str(e)}")
+            logger.error(f"[MSG-PARSE] ❌ Failed to decode message data: {message.message_id()}, error: {str(e)}")
             return None
             
         except Exception as e:
-            logger.error(f"Unexpected error parsing message: {message.message_id()}, error: {str(e)}")
+            logger.error(f"[MSG-PARSE] ❌ Unexpected error parsing message: {message.message_id()}, error: {type(e).__name__}: {str(e)}")
+            logger.exception(f"[MSG-PARSE] Full exception traceback for message {message.message_id()}:")
             return None
     
     def _handle_processing_error(self, message: PulsarMessage, error: Exception) -> None:
