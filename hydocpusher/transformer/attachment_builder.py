@@ -218,7 +218,7 @@ class AttachmentBuilder:
                         desc = item.get('APPDESC', '')
                         
                         # 转换地址
-                        absolute_url = self._build_absolute_url(url, puburl)
+                        absolute_url = self._build_absolute_url(url)
                         
                         attachment = AttachmentData(
                             name=desc or f"{field_type}附件",
@@ -250,7 +250,9 @@ class AttachmentBuilder:
         for i, appendix in enumerate(appdix_list):
             try:
                 url = appendix.APPFILE
-                absolute_url = self._build_absolute_url(url, puburl)
+                
+                # 使用puburl前缀构建绝对地址
+                absolute_url = self._build_absolute_url_with_puburl_prefix(url, puburl)
                 
                 attachment = AttachmentData(
                     name=f"Appdix附件{i+1}",
@@ -282,7 +284,7 @@ class AttachmentBuilder:
         for i, attachment_item in enumerate(attachments_list):
             try:
                 url = attachment_item.APPURL
-                absolute_url = self._build_absolute_url(url, puburl)
+                absolute_url = self._build_absolute_url(url)
                 
                 attachment = AttachmentData(
                     name=attachment_item.APPDESC or f"附件{i+1}",
@@ -310,21 +312,23 @@ class AttachmentBuilder:
         # 检查是否是W后一串数字后缀名是图片的地址
         # 还包含这种数据 202509/W020250918359631108985_ORIGIN.png ， 202509/W020250918359631108985.png
         # 正则应该这么写呢 
-        pattern = r'W\d+\.(jpg|jpeg|png|gif|bmp|webp)$|20\d{6}/W\d+\.(jpg|jpeg|png|gif|bmp|webp)$'
+        pattern = r'W\d+.*\.(jpg|jpeg|png|gif|bmp|webp)$|20\d{6}/W\d+.*\.(jpg|jpeg|png|gif|bmp|webp)$'
         if re.search(pattern, address, re.IGNORECASE):
-            # 现阶段直接返回原地址
-            # W020250829679959407981.jpg 截取成下面的格式
-            # 202508/W020250829679959407981.jpg
-            address = f"csts/test_2240/{address[2:8]}/{address}"
-            return address
+            # 如果是纯W开头的文件名，添加年月前缀
+            if address.startswith('W') and not '/' in address:
+                # W020250829679959407981.jpg 截取成下面的格式
+                # 202508/W020250829679959407981.jpg
+                year_month = address[2:8]  # 从W020250829... 中提取 202508
+                address = f"{year_month}/{address}"
         return address
     
-    def _build_absolute_url(self, relative_path: str, puburl: str) -> str:
+    def _build_absolute_url(self, relative_path: str, puburl: str = "") -> str:
         """
         构建绝对地址
         
         Args:
             relative_path: 相对路径
+            puburl: 发布URL（可选）
             
         Returns:
             绝对地址
@@ -341,12 +345,7 @@ class AttachmentBuilder:
         # 确保路径以/开头
         if not converted_path.startswith('/'):
             converted_path = '/' + converted_path
-        # https://www.cnyeig.com/xwzx/jtxw/202509/t20250918_65615.html
-        # 我们将截取 倒数第二个 / 前的内容作为附件的前缀
-        if puburl and 'html' in puburl and '/' in puburl:
-            puburl_prefix = '/'.join(puburl.split('/')[:-1])
-            converted_path = f"{puburl_prefix}{converted_path}"
-            return converted_path
+            
         return f"http://{self.domain}{converted_path}"
     
     def build_html_attachment(self, pub_url: str, document_title: str) -> AttachmentData:
@@ -839,7 +838,9 @@ class AttachmentBuilder:
             附件数据对象或None
         """
         try:
-            absolute_url = self._build_absolute_url(url, puburl)
+            if 'webpic' in url:
+                return None
+            absolute_url = self._build_absolute_url(url)
             
             return AttachmentData(
                 name=f"{source_type}附件",
@@ -908,6 +909,51 @@ class AttachmentBuilder:
         else:
             return "其他"
     
+    def _build_absolute_url_with_puburl_prefix(self, relative_path: str, puburl: str) -> str:
+        """
+        使用puburl前缀构建绝对地址（专用于APPENDIX和Appdix）
+        
+        Args:
+            relative_path: 相对路径
+            puburl: 发布URL
+            
+        Returns:
+            绝对地址
+        """
+        if not relative_path:
+            return ""
+        
+        if relative_path.startswith('http'):
+            return relative_path
+        
+        # 处理W后缀图片地址，需要添加年月前缀
+        converted_path = self._convert_w_suffix_address(relative_path)
+        
+        # 确保路径以/开头
+        if not converted_path.startswith('/'):
+            converted_path = '/' + converted_path
+        
+        # https://www.cnyeig.com/xwzx/jtxw/202508/t20250829_64908.html
+        # 截取倒数第二个 / 前的内容作为附件的前缀
+        if puburl and 'html' in puburl and '/' in puburl:
+            url_parts = puburl.split('/')
+            if len(url_parts) >= 2:
+                # 去掉最后一个部分（文件名），保留倒数第二个/前的路径
+                puburl_prefix = '/'.join(url_parts[:-1])
+                
+                # 检查puburl最后的路径段是否是年月格式(6位数字)，如果是则需要特殊处理W文件
+                last_path_segment = url_parts[-2] if len(url_parts) >= 2 else ""
+                if re.match(r'^\d{6}$', last_path_segment) :
+                    # puburl已包含年月信息，且W文件也添加了年月前缀，去重
+                    # 例如: converted_path="/202508/W...", last_segment="202508"
+                    if converted_path.startswith(f'/{last_path_segment}/'):
+                        converted_path = converted_path[len(f'/{last_path_segment}'):]
+                
+                converted_path = f"{puburl_prefix}{converted_path}"
+                return converted_path
+        
+        return f"http://{self.domain}{converted_path}"
+    
     def _build_appendix_attachments(self, appendix_list: List[AppendixInfo], document_title: str, webhttp: str, puburl: str) -> List[AttachmentData]:
         """构建传统APPENDIX附件"""
         attachments = []
@@ -916,10 +962,13 @@ class AttachmentBuilder:
             try:
                 url = appendix.APPFILE
                 appflag = appendix.APPFLAG
+                
+                # 过滤掉视频播放页类型的附件
                 if str(appflag) == '140':
                     continue
-                # 使用域名构建绝对地址，而不是使用webhttp
-                absolute_url = self._build_absolute_url(url,puburl)
+                
+                # 使用puburl前缀构建绝对地址
+                absolute_url = self._build_absolute_url_with_puburl_prefix(url, puburl)
                 
                 attachment = AttachmentData(
                     name=f"附件{i+1}",
