@@ -44,7 +44,7 @@ class FieldMapper:
             'author': '',
             'fillingdepartment': '',
             'bly': '',
-            'retentionperiod': 30,  # 根据PRD文档：固定值30
+            'retentionperiod': '30',  # 根据PRD文档：固定值30（字符串格式）
         }
         
         # 固定值映射（根据PRD文档）
@@ -149,7 +149,7 @@ class FieldMapper:
                 mapped_data.update(classification_mapping)
                 # 集团新闻 30 年  其他永久 集团新闻栏目ID 672 2240
                 if str(source_data['CHANNELID']) == '672' or str(source_data['CHANNELID']) == '2241':
-                    mapped_data['retentionperiod'] = 30
+                    mapped_data['retentionperiod'] = '30'  # 转换为字符串
                 else:
                     mapped_data['retentionperiod'] = '永久'
             # 设置保留期限（根据PRD文档：固定值30）
@@ -259,7 +259,7 @@ class FieldMapper:
         logger.warning(f"Failed to extract year from: {date_str}")
         return ''
     
-    def _convert_retention_period(self, value: str) -> int:
+    def _convert_retention_period(self, value: str) -> str:
         """
         转换保留期限
         
@@ -267,13 +267,15 @@ class FieldMapper:
             value: 保留期限值
             
         Returns:
-            保留期限整数
+            保留期限字符串
         """
         try:
-            return int(value)
+            # 如果是数字，转换为字符串
+            int(value)  # 验证是否为有效数字
+            return str(value)
         except (ValueError, TypeError):
             logger.warning(f"Invalid retention period: {value}, using default")
-            return self.config.archive.retention_period
+            return str(self.config.archive.retention_period)
     
     def _convert_string(self, value: str) -> str:
         """

@@ -294,7 +294,7 @@ class ArchiveClient:
             logger.info(f"[ARCHIVE-SEND] 📤 Sending archive data to {self.api_url}")
             logger.info(f"[ARCHIVE-SEND] Document: {doc_id} - {doc_title}")
             logger.debug(f"[ARCHIVE-SEND] Request payload: {json.dumps(request_data, ensure_ascii=False, indent=2)}")
-            
+            logger.info(f"[ARCHIVE-SEND] Request payload: {json.dumps(request_data, ensure_ascii=False, indent=2)}")
             # 确保客户端已创建
             client = self._ensure_async_client()
             
