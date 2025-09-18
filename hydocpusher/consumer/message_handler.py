@@ -154,8 +154,11 @@ class MessageHandler:
             if missing_fields:
                 raise ValidationException(f"Missing required fields: {', '.join(missing_fields)}")
             
+            # 预处理消息数据，处理字符串JSON字段
+            preprocessed_data = self._preprocess_message_data(message_data)
+            
             # 创建消息模型
-            message_schema = SourceMessageSchema(**message_data)
+            message_schema = SourceMessageSchema(**preprocessed_data)
             
             logger.debug(f"Message validation successful: {message_schema.document_id}")
             return message_schema
@@ -164,6 +167,69 @@ class MessageHandler:
             raise
         except Exception as e:
             raise ValidationException(f"Message validation failed: {str(e)}", cause=e)
+    
+    def _preprocess_message_data(self, message_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        预处理消息数据，处理字符串JSON字段
+        
+        Args:
+            message_data: 原始消息数据
+            
+        Returns:
+            预处理后的消息数据
+        """
+        try:
+            # 深拷贝数据以避免修改原始数据
+            import copy
+            processed_data = copy.deepcopy(message_data)
+            
+            # 处理 DATA.DATA.DEFAULTRELDOCS 字段
+            if ('DATA' in processed_data and 
+                'DATA' in processed_data['DATA'] and 
+                'DEFAULTRELDOCS' in processed_data['DATA']['DATA']):
+                
+                defaultreldocs = processed_data['DATA']['DATA']['DEFAULTRELDOCS']
+                
+                # 如果是字符串，尝试解析为JSON
+                if isinstance(defaultreldocs, str) and defaultreldocs.strip():
+                    try:
+                        parsed = json.loads(defaultreldocs)
+                        # 提取DATA数组，如果解析失败则使用空列表
+                        if isinstance(parsed, dict) and 'DATA' in parsed:
+                            processed_data['DATA']['DATA']['DEFAULTRELDOCS'] = parsed['DATA']
+                        else:
+                            processed_data['DATA']['DATA']['DEFAULTRELDOCS'] = []
+                        logger.debug("Successfully preprocessed DEFAULTRELDOCS field")
+                    except json.JSONDecodeError:
+                        logger.warning(f"Failed to parse DEFAULTRELDOCS JSON: {defaultreldocs}")
+                        processed_data['DATA']['DATA']['DEFAULTRELDOCS'] = []
+            
+            # 处理其他可能的字符串JSON字段
+            json_string_fields = [
+                'DEFAULTRELDOCS_IRS', 'DOCCOVERPIC', 'LISTPICS', 
+                'DOCUMENT_RELATED_APPENDIX', 'DOCUMENT_CONTENT_APPENDIX',
+                'DOCUMENT_RELATED_VIDEO', 'DOCUMENT_CONTENT_PIC', 
+                'DOCUMENT_CONTENT_VIDEO', 'FOCUSIMAGE', 'DOCUMENT_RELATED_PIC'
+            ]
+            
+            if ('DATA' in processed_data and 'DATA' in processed_data['DATA']):
+                data_section = processed_data['DATA']['DATA']
+                for field in json_string_fields:
+                    if field in data_section and isinstance(data_section[field], str):
+                        if data_section[field].strip() in ['[]', '{}', '']:
+                            continue  # 保持空字符串不变
+                        try:
+                            parsed = json.loads(data_section[field])
+                            data_section[field] = json.dumps(parsed, ensure_ascii=False)
+                        except json.JSONDecodeError:
+                            pass  # 保持原值不变
+            
+            logger.debug("Message data preprocessing completed")
+            return processed_data
+            
+        except Exception as e:
+            logger.warning(f"Message data preprocessing failed: {str(e)}")
+            return message_data  # 返回原始数据
     
     async def _transform_data(self, message: SourceMessageSchema) -> Dict[str, Any]:
         """
