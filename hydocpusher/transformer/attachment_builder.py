@@ -85,6 +85,7 @@ class AttachmentBuilder:
         
         attachments = []
         document_title = source_message.DATA.DATA.DOCTITLE
+        puburl = source_message.DATA.DATA.DOCPUBURL
         webhttp = source_message.DATA.DATA.WEBHTTP
         
         try:
@@ -95,7 +96,7 @@ class AttachmentBuilder:
             
             # 2. 从HTML内容中提取附件
             if source_message.DATA.DATA.DOCHTMLCON:
-                html_attachments = self._extract_html_attachments(source_message.DATA.DATA.DOCHTMLCON)
+                html_attachments = self._extract_html_attachments(source_message.DATA.DATA.DOCHTMLCON, puburl)
                 attachments.extend(html_attachments)
             
             # 3. 处理JSON格式附件字段
@@ -107,27 +108,27 @@ class AttachmentBuilder:
             
             for field_name, field_value in json_fields:
                 if field_value:
-                    json_attachments = self._parse_json_attachments(field_value, field_name)
+                    json_attachments = self._parse_json_attachments(field_value, field_name, puburl)
                     attachments.extend(json_attachments)
             
             # 4. 处理传统APPENDIX数组
             if source_message.DATA.APPENDIX:
                 appendix_attachments = self._build_appendix_attachments(
-                    source_message.DATA.APPENDIX, document_title, webhttp
+                    source_message.DATA.APPENDIX, document_title, webhttp, puburl
                 )
                 attachments.extend(appendix_attachments)
             
             # 5. 处理Appdix字段（新增）
             if source_message.DATA.appdix:
                 appdix_attachments = self._build_appdix_attachments(
-                    source_message.DATA.appdix, document_title
+                    source_message.DATA.appdix, document_title, puburl
                 )
                 attachments.extend(appdix_attachments)
             
             # 6. 处理attachments字段（新增）
             if source_message.DATA.attachments:
                 new_attachments = self._build_new_attachments(
-                    source_message.DATA.attachments, document_title
+                    source_message.DATA.attachments, document_title, puburl
                 )
                 attachments.extend(new_attachments)
             
@@ -149,12 +150,13 @@ class AttachmentBuilder:
         except Exception as e:
             raise DataTransformException(f"Failed to build attachments: {str(e)}", cause=e)
     
-    def _extract_html_attachments(self, html_content: str) -> List[AttachmentData]:
+    def _extract_html_attachments(self, html_content: str, puburl: str = "") -> List[AttachmentData]:
         """
         从HTML内容中提取附件
         
         Args:
             html_content: HTML内容字符串
+            puburl: 发布URL，用于构建绝对地址
             
         Returns:
             附件数据列表
@@ -168,23 +170,23 @@ class AttachmentBuilder:
             for a_tag in soup.find_all('a', href=True):
                 url = a_tag['href']
                 if self._is_attachment_url(url):
-                    attachment = self._create_attachment_from_url(url, 'link')
+                    attachment = self._create_attachment_from_url(url, 'link', puburl)
                     if attachment:
                         attachments.append(attachment)
             
             # 提取<iframe>标签的src属性
             for iframe_tag in soup.find_all('iframe', src=True):
                 url = iframe_tag['src']
-                if url.contains('pages.do'):
+                if 'pages.do' in url:
                     continue
-                attachment = self._create_attachment_from_url(url, 'iframe')
+                attachment = self._create_attachment_from_url(url, 'iframe', puburl)
                 if attachment:
                     attachments.append(attachment)
             
             # 提取<img>标签的src属性
             for img_tag in soup.find_all('img', src=True):
                 url = img_tag['src']
-                attachment = self._create_attachment_from_url(url, 'image')
+                attachment = self._create_attachment_from_url(url, 'image', puburl)
                 if attachment:
                     attachments.append(attachment)
                     
@@ -193,13 +195,14 @@ class AttachmentBuilder:
         
         return attachments
     
-    def _parse_json_attachments(self, json_content: str, field_type: str) -> List[AttachmentData]:
+    def _parse_json_attachments(self, json_content: str, field_type: str, puburl: str = "") -> List[AttachmentData]:
         """
         解析JSON格式附件
         
         Args:
             json_content: JSON格式内容
             field_type: 字段类型名称
+            puburl: 发布URL，用于构建绝对地址
             
         Returns:
             附件数据列表
@@ -215,7 +218,7 @@ class AttachmentBuilder:
                         desc = item.get('APPDESC', '')
                         
                         # 转换地址
-                        absolute_url = self._build_absolute_url(url)
+                        absolute_url = self._build_absolute_url(url, puburl)
                         
                         attachment = AttachmentData(
                             name=desc or f"{field_type}附件",
@@ -230,13 +233,14 @@ class AttachmentBuilder:
         
         return attachments
     
-    def _build_appdix_attachments(self, appdix_list: List[AppendixInfo], document_title: str) -> List[AttachmentData]:
+    def _build_appdix_attachments(self, appdix_list: List[AppendixInfo], document_title: str, puburl: str = "") -> List[AttachmentData]:
         """
         构建Appdix附件
         
         Args:
             appdix_list: Appdix附件列表
             document_title: 文档标题
+            puburl: 发布URL，用于构建绝对地址
             
         Returns:
             附件数据列表
@@ -246,7 +250,7 @@ class AttachmentBuilder:
         for i, appendix in enumerate(appdix_list):
             try:
                 url = appendix.APPFILE
-                absolute_url = self._build_absolute_url(url)
+                absolute_url = self._build_absolute_url(url, puburl)
                 
                 attachment = AttachmentData(
                     name=f"Appdix附件{i+1}",
@@ -261,13 +265,14 @@ class AttachmentBuilder:
         
         return attachments
     
-    def _build_new_attachments(self, attachments_list: List[AttachmentItem], document_title: str) -> List[AttachmentData]:
+    def _build_new_attachments(self, attachments_list: List[AttachmentItem], document_title: str, puburl: str = "") -> List[AttachmentData]:
         """
         构建新格式附件
         
         Args:
             attachments_list: 新格式附件列表
             document_title: 文档标题
+            puburl: 发布URL，用于构建绝对地址
             
         Returns:
             附件数据列表
@@ -277,7 +282,7 @@ class AttachmentBuilder:
         for i, attachment_item in enumerate(attachments_list):
             try:
                 url = attachment_item.APPURL
-                absolute_url = self._build_absolute_url(url)
+                absolute_url = self._build_absolute_url(url, puburl)
                 
                 attachment = AttachmentData(
                     name=attachment_item.APPDESC or f"附件{i+1}",
@@ -303,7 +308,9 @@ class AttachmentBuilder:
             转换后的地址
         """
         # 检查是否是W后一串数字后缀名是图片的地址
-        pattern = r'W\d+\.(jpg|jpeg|png|gif|bmp|webp)$'
+        # 还包含这种数据 202509/W020250918359631108985_ORIGIN.png ， 202509/W020250918359631108985.png
+        # 正则应该这么写呢 
+        pattern = r'W\d+\.(jpg|jpeg|png|gif|bmp|webp)$|20\d{6}/W\d+\.(jpg|jpeg|png|gif|bmp|webp)$'
         if re.search(pattern, address, re.IGNORECASE):
             # 现阶段直接返回原地址
             # W020250829679959407981.jpg 截取成下面的格式
@@ -312,7 +319,7 @@ class AttachmentBuilder:
             return address
         return address
     
-    def _build_absolute_url(self, relative_path: str) -> str:
+    def _build_absolute_url(self, relative_path: str, puburl: str) -> str:
         """
         构建绝对地址
         
@@ -334,7 +341,12 @@ class AttachmentBuilder:
         # 确保路径以/开头
         if not converted_path.startswith('/'):
             converted_path = '/' + converted_path
-        
+        # https://www.cnyeig.com/xwzx/jtxw/202509/t20250918_65615.html
+        # 我们将截取 倒数第二个 / 前的内容作为附件的前缀
+        if puburl and 'html' in puburl and '/' in puburl:
+            puburl_prefix = '/'.join(puburl.split('/')[:-1])
+            converted_path = f"{puburl_prefix}{converted_path}"
+            return converted_path
         return f"http://{self.domain}{converted_path}"
     
     def build_html_attachment(self, pub_url: str, document_title: str) -> AttachmentData:
@@ -814,19 +826,20 @@ class AttachmentBuilder:
         url_lower = url.lower()
         return any(url_lower.endswith(ext) for ext in file_extensions)
     
-    def _create_attachment_from_url(self, url: str, source_type: str) -> Optional[AttachmentData]:
+    def _create_attachment_from_url(self, url: str, source_type: str, puburl: str = "") -> Optional[AttachmentData]:
         """
         从URL创建附件对象
         
         Args:
             url: URL字符串
             source_type: 来源类型
+            puburl: 发布URL，用于构建绝对地址
             
         Returns:
             附件数据对象或None
         """
         try:
-            absolute_url = self._build_absolute_url(url)
+            absolute_url = self._build_absolute_url(url, puburl)
             
             return AttachmentData(
                 name=f"{source_type}附件",
@@ -895,7 +908,7 @@ class AttachmentBuilder:
         else:
             return "其他"
     
-    def _build_appendix_attachments(self, appendix_list: List[AppendixInfo], document_title: str, webhttp: str) -> List[AttachmentData]:
+    def _build_appendix_attachments(self, appendix_list: List[AppendixInfo], document_title: str, webhttp: str, puburl: str) -> List[AttachmentData]:
         """构建传统APPENDIX附件"""
         attachments = []
         
@@ -906,7 +919,7 @@ class AttachmentBuilder:
                 if str(appflag) == '140':
                     continue
                 # 使用域名构建绝对地址，而不是使用webhttp
-                absolute_url = self._build_absolute_url(url)
+                absolute_url = self._build_absolute_url(url,puburl)
                 
                 attachment = AttachmentData(
                     name=f"附件{i+1}",
