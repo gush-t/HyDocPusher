@@ -67,6 +67,13 @@ async def initialize_components():
                 
                 if result.get("success"):
                     message_id = result.get("message_id")
+                    
+                    # 检查是否是被过滤的消息
+                    if result.get("filtered"):
+                        logger.info(f"Message {message_id} filtered, skipping archive processing.")
+                        return
+                    
+                    # 只有未被过滤的消息才发送到档案系统
                     archive_data = result.get("archive_data")
                     
                     logger.info(f"Message {message_id} processed, sending to archive...")
