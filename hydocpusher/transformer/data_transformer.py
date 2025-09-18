@@ -33,6 +33,8 @@ class DataTransformer:
             'failed_transforms': 0,
             'last_transform_time': None
         }
+        
+        logger.info("[DATA-TRANSFORMER] 🔧 DataTransformer initialized")
     
     def transform_message(self, source_message: SourceMessageSchema) -> ArchiveRequestSchema:
         """
@@ -51,39 +53,57 @@ class DataTransformer:
         start_time = datetime.now()
         
         try:
-            logger.info(f"Starting transformation for message {source_message.document_id}")
+            doc_id = source_message.document_id
+            doc_title = source_message.document_title
+            channel_id = source_message.channel_id
+            
+            logger.info(f"[DATA-TRANSFORM] 🔄 Starting transformation for message {doc_id}")
+            logger.debug(f"[DATA-TRANSFORM] Document details - Title: {doc_title}, Channel: {channel_id}")
             
             # 验证源消息
+            logger.debug(f"[DATA-TRANSFORM] Step 1: Validating source message")
             self._validate_source_message(source_message)
             
             # 提取源数据
+            logger.debug(f"[DATA-TRANSFORM] Step 2: Extracting source data")
             source_data = self._extract_source_data(source_message)
             
             # 映射字段
+            logger.debug(f"[DATA-TRANSFORM] Step 3: Mapping fields")
             mapped_data = self._map_fields(source_data)
             
             # 构建附件
+            logger.debug(f"[DATA-TRANSFORM] Step 4: Building attachments")
             attachments = self._build_attachments(source_message)
+            logger.debug(f"[DATA-TRANSFORM] Generated {len(attachments)} attachments")
             
             # 创建档案数据
+            logger.debug(f"[DATA-TRANSFORM] Step 5: Creating archive data")
             archive_data = self._create_archive_data(mapped_data, attachments)
             
             # 创建档案请求
+            logger.debug(f"[DATA-TRANSFORM] Step 6: Creating archive request")
             archive_request = self._create_archive_request(archive_data)
             
             # 验证结果
+            logger.debug(f"[DATA-TRANSFORM] Step 7: Validating archive request")
             self._validate_archive_request(archive_request)
             
             # 更新统计
             self._update_stats(True, start_time)
             
-            logger.info(f"Successfully transformed message {source_message.document_id}")
+            processing_time = (datetime.now() - start_time).total_seconds()
+            logger.info(f"[DATA-TRANSFORM] ✅ Successfully transformed message {doc_id} in {processing_time:.2f}s")
             return archive_request
             
         except Exception as e:
             self._update_stats(False, start_time)
+            processing_time = (datetime.now() - start_time).total_seconds()
+            logger.error(f"[DATA-TRANSFORM] ❌ Failed to transform message {doc_id} after {processing_time:.2f}s: {type(e).__name__}: {str(e)}")
+            
             if isinstance(e, (DataTransformException, ValidationException)):
                 raise
+            logger.exception(f"[DATA-TRANSFORM] Full exception traceback for message {doc_id}:")
             raise DataTransformException(f"Failed to transform message: {str(e)}", cause=e)
     
     def transform_message_from_dict(self, message_dict: Dict[str, Any]) -> ArchiveRequestSchema:

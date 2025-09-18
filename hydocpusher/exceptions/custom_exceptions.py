@@ -87,3 +87,11 @@ class HealthCheckException(HyDocPusherException):
     
     def __init__(self, message: str, cause: Exception = None):
         super().__init__(message, "HEALTH_CHECK_ERROR", cause)
+
+
+class ChannelFilteredException(HyDocPusherException):
+    """频道过滤异常 - 当频道ID不在允许列表中时抛出"""
+    
+    def __init__(self, message: str, channel_id: str = None, cause: Exception = None):
+        super().__init__(message, "CHANNEL_FILTERED", cause)
+        self.channel_id = channel_id

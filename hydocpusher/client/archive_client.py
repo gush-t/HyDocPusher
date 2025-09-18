@@ -78,7 +78,8 @@ class ArchiveClient:
             jitter=True
         )
         
-        logger.info(f"ArchiveClient initialized with API URL: {self.api_url}")
+        logger.info(f"[ARCHIVE-CLIENT] 🏗️  ArchiveClient initialized with API URL: {self.api_url}")
+        logger.debug(f"[ARCHIVE-CLIENT] Configuration - Timeout: {self.timeout}s, Max retries: {self.max_retries}")
     
     async def __aenter__(self):
         """异步上下文管理器入口"""
@@ -286,19 +287,24 @@ class ArchiveClient:
                 # 如果传入的是普通字典，将其作为ArchiveData构建完整请求
                 request_data = self._build_request_data(archive_data)
             
-            logger.info(f"Sending archive data to {self.api_url}")
-            logger.info(f"Request data: {request_data}")
-            logger.debug(f"Request data: {json.dumps(request_data, ensure_ascii=False, indent=2)}")
-            logger.info(f"Request data: {json.dumps(request_data, ensure_ascii=False, indent=2)}")
-            logger.info(f"Request data: {request_data}")
+            # 记录请求信息
+            doc_id = request_data.get("archiveData", {}).get("did", "unknown")
+            doc_title = request_data.get("archiveData", {}).get("title", "unknown")
+            
+            logger.info(f"[ARCHIVE-SEND] 📤 Sending archive data to {self.api_url}")
+            logger.info(f"[ARCHIVE-SEND] Document: {doc_id} - {doc_title}")
+            logger.debug(f"[ARCHIVE-SEND] Request payload: {json.dumps(request_data, ensure_ascii=False, indent=2)}")
+            
             # 确保客户端已创建
             client = self._ensure_async_client()
             
             # 发送请求
+            logger.debug(f"[ARCHIVE-SEND] Making HTTP POST request...")
             response = await client.post(
                 self.api_url,
                 json=request_data
             )
+            logger.debug(f"[ARCHIVE-SEND] HTTP response received: {response.status_code}")
             
             # 处理响应
             return self._handle_response(response)

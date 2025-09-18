@@ -12,9 +12,9 @@ from datetime import datetime
 from ..models.message_models import SourceMessageSchema
 from ..transformer.data_transformer import DataTransformer
 from ..config.settings import AppConfig
-from ..config.classification_config import ClassificationConfig
+from ..config.classification_config import ClassificationConfig, get_classification_config
 from ..exceptions.custom_exceptions import (
-    ValidationException, MessageProcessException, DataTransformException
+    ValidationException, MessageProcessException, DataTransformException, ChannelFilteredException
 )
 
 logger = logging.getLogger(__name__)
@@ -39,11 +39,12 @@ class MessageHandler:
         """
         self.config = config
         self.data_transformer = data_transformer or DataTransformer()
-        self.classification_config = classification_config
+        self.classification_config = classification_config or get_classification_config()
         self._processing_stats = {
             "processed": 0,
             "failed": 0,
-            "retried": 0
+            "retried": 0,
+            "filtered": 0  # 添加过滤统计
         }
         
     async def handle_message(self, message_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -74,10 +75,13 @@ class MessageHandler:
             # 2. 检查消息是否可以处理
             validated_message.validate_for_processing()
             
-            # 3. 数据转换
+            # 3. 检查频道ID是否在允许列表中
+            await self._validate_channel_id(validated_message.channel_id)
+            
+            # 4. 数据转换
             archive_data = await self._transform_data(validated_message)
             
-            # 4. 记录成功统计
+            # 5. 记录成功统计
             self._processing_stats["processed"] += 1
             processing_time = (datetime.now() - start_time).total_seconds()
             
@@ -95,6 +99,21 @@ class MessageHandler:
             self._processing_stats["failed"] += 1
             logger.error(f"Message validation failed: {message_id}, error: {str(e)}")
             raise MessageProcessException(f"Message validation failed: {str(e)}", cause=e)
+            
+        except ChannelFilteredException as e:
+            # 频道过滤异常，记录并跳过处理
+            self._processing_stats["filtered"] += 1
+            processing_time = (datetime.now() - start_time).total_seconds()
+            logger.info(f"Message filtered due to channel restriction: {message_id}, channel: {e.channel_id}, time: {processing_time:.2f}s")
+            
+            return {
+                "success": True,
+                "filtered": True,
+                "message_id": message_id,
+                "channel_id": e.channel_id,
+                "processing_time": processing_time,
+                "reason": "Channel not in allowed list"
+            }
             
         except DataTransformException as e:
             # 数据转换异常，可以重试
@@ -173,6 +192,38 @@ class MessageHandler:
         except Exception as e:
             raise DataTransformException(f"Data transformation failed: {str(e)}", cause=e)
     
+    async def _validate_channel_id(self, channel_id: str) -> None:
+        """
+        验证频道ID是否在允许的列表中
+        
+        Args:
+            channel_id: 频道ID
+            
+        Raises:
+            ChannelFilteredException: 频道ID不在允许列表中时抛出异常
+        """
+        try:
+            logger.debug(f"Validating channel ID: {channel_id}")
+            
+            # 获取所有允许的频道ID
+            allowed_channels = self.classification_config.get_channel_ids()
+            
+            if str(channel_id) not in allowed_channels:
+                logger.debug(f"Channel ID {channel_id} not in allowed list: {allowed_channels}")
+                raise ChannelFilteredException(
+                    f"Channel ID {channel_id} is not in the allowed channel list", 
+                    channel_id=channel_id
+                )
+            
+            logger.debug(f"Channel ID {channel_id} validation successful")
+            
+        except ChannelFilteredException:
+            raise
+        except Exception as e:
+            logger.warning(f"Error validating channel ID {channel_id}: {str(e)}")
+            # 如果验证出错，允许继续处理（保守策略）
+            pass
+    
     def set_data_transformer(self, transformer: DataTransformer) -> None:
         """
         设置数据转换器
@@ -209,7 +260,8 @@ class MessageHandler:
         self._processing_stats = {
             "processed": 0,
             "failed": 0,
-            "retried": 0
+            "retried": 0,
+            "filtered": 0
         }
         logger.info("Processing stats reset")
 
