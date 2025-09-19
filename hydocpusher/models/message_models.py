@@ -155,7 +155,7 @@ class DocumentData(BaseModel):
     DOCKEYWORDS: str = Field(default="", alias="DOCKEYWORDS")
     TITLECOLOR: str = Field(default="", alias="TITLECOLOR")
     CLASSIFICATIONID: str = Field(..., alias="CLASSIFICATIONID")
-    ORIGINMETADATAID: str = Field(..., alias="ORIGINMETADATAID")
+    ORIGINMETADATAID: str = Field(default="", alias="ORIGINMETADATAID")
     SITEID: str = Field(..., alias="SITEID")
     CHNLDESC: str = Field(..., alias="CHNLDESC")
     PUBSTATUS: str = Field(..., alias="PUBSTATUS")
