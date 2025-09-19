@@ -283,21 +283,10 @@ class DataTransformer:
             附件数据列表
         """
         try:
-            attachments = []
-            
-            # 构建HTML正文附件
-            html_attachment = self.attachment_builder.build_html_attachment(
-                source_message.DATA.DATA.DOCPUBURL,
-                source_message.document_title
+            # 直接使用attachment_builder构建所有附件（包括HTML正文附件）
+            attachments = self.attachment_builder.build_attachments(
+                source_message
             )
-            attachments.append(html_attachment)
-            
-            # 构建其他附件
-            if source_message.DATA.APPENDIX:
-                other_attachments = self.attachment_builder.build_attachments(
-                    source_message
-                )
-                attachments.extend(other_attachments)
             
             # 过滤和限制附件
             filtered_attachments = self.attachment_builder.filter_attachments(
