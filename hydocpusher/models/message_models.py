@@ -131,6 +131,7 @@ class DocumentData(BaseModel):
     DOCHTMLCON: str = Field(default="", alias="DOCHTMLCON")
     DOCUMENT_RELATED_VIDEO: str = Field(default="[]", alias="DOCUMENT_RELATED_VIDEO")
     CRUSER: str = Field(..., alias="CRUSER")
+    DOCCREATER: str = Field(default="", alias="DOCCREATER")
     DOCUMENT_DOCRELTIME: str = Field(..., alias="DOCUMENT_DOCRELTIME")
     DEFAULTRELDOCS_IRS: str = Field(default="[]", alias="DEFAULTRELDOCS_IRS")
     DOCUMENT_CONTENT_PIC: str = Field(default="[]", alias="DOCUMENT_CONTENT_PIC")
@@ -169,7 +170,7 @@ class DocumentData(BaseModel):
     FOCUSTITLE: str = Field(default="", alias="FOCUSTITLE")
     FOCUSDESC: str = Field(default="", alias="FOCUSDESC")
     WCMMETATABLEGOVDOCNEWSAPPID: str = Field(default="", alias="WCMMETATABLEGOVDOCNEWSAPPID")
-    WEBHTTP: str = Field(..., alias="WEBHTTP")
+    WEBHTTP: str = Field(default="", alias="WEBHTTP")
     FOCUSIMAGETITLE: str = Field(default="", alias="FOCUSIMAGETITLE")
     
     @field_validator('CRTIME', 'DOCRELTIME', 'DOCUMENT_DOCRELTIME', 'CHNLDOC_OPERTIME')

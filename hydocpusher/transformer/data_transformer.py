@@ -250,9 +250,9 @@ class DataTransformer:
         additional_fields = {}
         
         try:
-            # 映射操作员信息
-            if 'CRUSER' in source_data:
-                additional_fields['bly'] = source_data['CRUSER']
+            # 映射操作员信息 - 从DOCCREATER字段获取
+            if 'DOCCREATER' in source_data:
+                additional_fields['bly'] = source_data['DOCCREATER']
             
             # 映射部门信息
             if 'CRDEPT' in source_data:
@@ -263,11 +263,8 @@ class DataTransformer:
                 else:
                     additional_fields['fillingdepartment'] = source_data['CRDEPT']
             
-            # 映射作者信息
-            if 'TXY' in source_data and source_data['TXY']:
-                additional_fields['author'] = source_data['TXY']
-            elif 'DOCAUTHOR' in source_data and source_data['DOCAUTHOR']:
-                additional_fields['author'] = source_data['DOCAUTHOR']
+            # 映射作者信息 - 固定为"云南省能源投资集团有限公司"
+            additional_fields['author'] = '云南省能源投资集团有限公司'
             
             return additional_fields
             

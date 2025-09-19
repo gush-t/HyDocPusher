@@ -28,7 +28,7 @@ class FieldMapper:
             'RECID': 'did',  # 根据PRD文档：did取原始数据中DATA.DATA.RECID字段的值
             'DOCTITLE': 'title',  # title取原始数据中DATA.DATA.DOCTITLE字段的值
             'TXY': 'author',  # author取原始数据中DATA.DATA.TXY字段的值
-            'CRUSER': 'bly',  # bly取原始数据中DATA.DATA.CRUSER字段的值
+            'DOCCREATER': 'bly',  # bly取原始数据中DATA.DATA.DOCCREATER字段的值
             'CRDEPT': 'fillingdepartment',  # fillingdepartment取原始数据中DATA.CHNLDOC.CRDEPT字段的值
             
             # 分类信息映射
@@ -41,10 +41,10 @@ class FieldMapper:
         
         # 默认值映射
         self.default_values = {
-            'author': '',
+            'author': '云南省能源投资集团有限公司',  # 固定为云南省能源投资集团有限公司
             'fillingdepartment': '',
             'bly': '',
-            'retentionperiod': '30',  # 根据PRD文档：固定值30（字符串格式）
+            'retentionperiod': '30年',  # 根据PRD文档：固定值30（字符串格式）
         }
         
         # 固定值映射（根据PRD文档）
@@ -149,7 +149,7 @@ class FieldMapper:
                 mapped_data.update(classification_mapping)
                 # 集团新闻 30 年  其他永久 集团新闻栏目ID 672 2240
                 if str(source_data['CHANNELID']) == '672' or str(source_data['CHANNELID']) == '2241':
-                    mapped_data['retentionperiod'] = '30'  # 转换为字符串
+                    mapped_data['retentionperiod'] = '30年'  # 转换为字符串
                 else:
                     mapped_data['retentionperiod'] = '永久'
             # 设置保留期限（根据PRD文档：固定值30）
@@ -337,7 +337,7 @@ class FieldMapper:
         # 验证数据类型
         if 'retentionperiod' in mapped_data:
             try:
-                if mapped_data['retentionperiod'] == '永久':
+                if mapped_data['retentionperiod'] == '永久' or mapped_data['retentionperiod'] == '30年':
                     return
                 retention_period = int(mapped_data['retentionperiod'])
                 if retention_period <= 0:
