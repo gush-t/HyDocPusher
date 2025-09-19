@@ -22,8 +22,9 @@ class AttachmentData(BaseModel):
         """验证文件扩展名"""
         if not v or not v.strip():
             raise ValueError("File extension cannot be empty")
-        if not v.startswith('.'):
-            v = f".{v}"
+        # 去掉前面的点，只保留后缀
+        if v.startswith('.'):
+            v = v[1:]
         return v.lower()
     
     @field_validator('file')
@@ -50,7 +51,7 @@ class AttachmentData(BaseModel):
             raise ValueError("Publication URL cannot be empty")
         
         name = f"{title}(正文)" if title else "正文"
-        ext = ".html"
+        ext = "html"  # 去掉前面的点
         
         return cls(
             name=name,
@@ -68,16 +69,16 @@ class AttachmentData(BaseModel):
         # 根据文件扩展名确定类型
         if file_url.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp')):
             attachment_type = '图片'
-            ext = '.jpg'
+            ext = 'jpg'  # 去掉前面的点
         elif file_url.lower().endswith(('.mp4', '.avi', '.mov', '.wmv', '.flv', '.mkv')):
             attachment_type = '视频'
-            ext = '.mp4'
+            ext = 'mp4'  # 去掉前面的点
         elif file_url.lower().endswith(('.mp3', '.wav', '.aac', '.flac', '.ogg')):
             attachment_type = '音频'
-            ext = '.mp3'
+            ext = 'mp3'  # 去掉前面的点
         else:
             attachment_type = '其他'
-            ext = '.file'
+            ext = 'file'  # 去掉前面的点
         
         name = description if description else f"媒体文件_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
@@ -150,7 +151,7 @@ class ArchiveData(BaseModel):
     @classmethod
     def validate_retention_period(cls, v):
         """验证保留期限"""
-        if v == '永久':
+        if v == '永久' or v == '30年':
             return v
         if int(v) <= 0:
             raise ValueError("Retention period must be positive")

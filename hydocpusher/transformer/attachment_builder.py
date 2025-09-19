@@ -374,7 +374,7 @@ class AttachmentBuilder:
             
             return AttachmentData(
                 name=attachment_name,
-                ext=".html",
+                ext="html",  # 去掉前面的点
                 file=pub_url,
                 type="正文"
             )
@@ -552,18 +552,18 @@ class AttachmentBuilder:
         # 如果没有扩展名，根据附件类型提供默认扩展名
         if not file_ext:
             default_extensions = {
-                '图片': '.jpg',
-                '视频': '.mp4',
-                '音频': '.mp3',
-                '文档': '.pdf',
-                '正文': '.html',
-                '其他': '.file'
+                '图片': 'jpg',
+                '视频': 'mp4',
+                '音频': 'mp3',
+                '文档': 'pdf',
+                '正文': 'html',
+                '其他': 'file'
             }
-            file_ext = default_extensions.get(attachment_type, '.file')
+            file_ext = default_extensions.get(attachment_type, 'file')
         
-        # 确保扩展名以点开头
-        if not file_ext.startswith('.'):
-            file_ext = f".{file_ext}"
+        # 去掉前面的点，只保留后缀
+        if file_ext.startswith('.'):
+            file_ext = file_ext[1:]
         
         return file_ext.lower()
     
